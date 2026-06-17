@@ -62,7 +62,9 @@ Current fields:
 
 ### Opportunity
 
-This is not yet implemented, but it should become a first-class concept.
+This is now partially implemented as a first-class concept.
+
+The current product can display open opportunities and review overdue follow-ups. In edit mode, it also provides an inline add-opportunity flow, allowing users to create new opportunities directly from the dashboard.
 
 An opportunity is a specific company, role, contract, or conversation with its own:
 
@@ -184,10 +186,28 @@ Feature: Manage multiple opportunities
 
   Scenario: Review open opportunities
     Given I have multiple live opportunities
-    When I open the opportunities view
+    When I open the dashboard
     Then I should see one row per opportunity
     And each row should show company, stage, and next action
     And overdue follow-ups should be visually distinct
+```
+
+### Feature: Capture a new opportunity
+
+```gherkin
+Feature: Capture a new opportunity
+  As a user tracking live interviews and conversations
+  I want to add a new opportunity from the dashboard
+  So that new threads enter the system before they slip out of view
+
+  Scenario: Add and save an opportunity
+    Given I am viewing the dashboard in edit mode
+    And the opportunity does not yet exist
+    When I add a new opportunity with company, next action, and status
+    And I save changes
+    Then the new opportunity should appear in the opportunities section
+    And the dashboard should persist the new opportunity
+    And the saved opportunity should still be available when I return
 ```
 
 ## Functional requirements
@@ -196,7 +216,8 @@ Feature: Manage multiple opportunities
 - The app must allow inline editing of track fields.
 - The app must persist track changes to GitHub Gist.
 - The app must provide a useful fallback state if persistence fails.
-- The app should support a future opportunities view with first-class opportunity records.
+- The app must display opportunities as first-class records inside the dashboard.
+- The app must allow the user to add a new opportunity from the dashboard.
 - The app should support review workflows that surface stale items and upcoming commitments.
 
 ## Non-functional requirements
@@ -215,7 +236,7 @@ Feature: Manage multiple opportunities
 
 ## Open questions
 
-- Should opportunities live inside the existing dashboard or in a dedicated view?
-- What is the minimum useful set of opportunity fields?
+- What is the minimum useful set of required fields when creating a new opportunity?
+- Should the add-opportunity flow live only inside edit mode or be available as a faster always-on action later?
 - Should review data be computed from activity timestamps or explicitly entered by the user?
 - When the Gist is unavailable, should local browser storage preserve unsaved edits?

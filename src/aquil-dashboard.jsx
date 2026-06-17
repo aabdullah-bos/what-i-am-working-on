@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import {
+  addOpportunity,
   createDefaultDashboardDocument,
   getDueFollowUps,
+  getIncompleteOpportunities,
   getOpenOpportunities,
   getReviewSummary,
+  OPPORTUNITY_STATUS_OPTIONS,
+  removeOpportunity,
   TRACK_URGENCY_OPTIONS,
+  updateOpportunityField,
   updateTrackField,
 } from "./data/dashboard";
 import {
@@ -23,12 +28,13 @@ const urgencyStyles = {
 };
 
 // ── Editable field ──────────────────────────────────────────────────────────
-function EditableField({ value, onChange, multiline, style }) {
+function EditableField({ value, onChange, multiline, style, ...inputProps }) {
   if (multiline) {
     return (
       <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
+        {...inputProps}
         onClick={e => e.stopPropagation()}
         style={{
           background: "transparent",
@@ -51,6 +57,7 @@ function EditableField({ value, onChange, multiline, style }) {
     <input
       value={value}
       onChange={e => onChange(e.target.value)}
+      {...inputProps}
       onClick={e => e.stopPropagation()}
       style={{
         background: "transparent",
@@ -83,6 +90,7 @@ function pluralize(count, singular, plural = `${singular}s`) {
 // ── Dashboard ───────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [dashboardDocument, setDashboardDocument] = useState(createDefaultDashboardDocument);
+  const [savedDashboardDocument, setSavedDashboardDocument] = useState(createDefaultDashboardDocument);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null); // null | "saving" | "saved" | "error"
@@ -92,7 +100,12 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(null);
   const tracks = dashboardDocument.tracks;
   const todayIsoDate = getTodayIsoDate();
+  const allOpportunities = dashboardDocument.opportunities;
   const openOpportunities = getOpenOpportunities(dashboardDocument);
+  const visibleOpportunities = editMode ? allOpportunities : openOpportunities;
+  const incompleteOpportunityIds = new Set(
+    getIncompleteOpportunities(dashboardDocument).map((opportunity) => opportunity.id)
+  );
   const dueFollowUpIds = new Set(
     getDueFollowUps(dashboardDocument, todayIsoDate).map((opportunity) => opportunity.id)
   );
@@ -103,7 +116,10 @@ export default function Dashboard() {
     const configError = getGistConfigError();
 
     if (configError) {
-      setDashboardDocument(createFallbackDashboardDocument());
+      const fallbackDocument = createFallbackDashboardDocument();
+
+      setDashboardDocument(fallbackDocument);
+      setSavedDashboardDocument(fallbackDocument);
       setLoadError(configError);
       setLoading(false);
       return;
@@ -112,11 +128,15 @@ export default function Dashboard() {
     loadDashboard()
       .then((document) => {
         setDashboardDocument(document);
+        setSavedDashboardDocument(document);
         setLoading(false);
       })
       .catch(err => {
         console.error("Gist load error:", err);
-        setDashboardDocument(createFallbackDashboardDocument());
+        const fallbackDocument = createFallbackDashboardDocument();
+
+        setDashboardDocument(fallbackDocument);
+        setSavedDashboardDocument(fallbackDocument);
         setLoadError(`Could not load from Gist (${err.message}). Showing defaults — changes will not be saved until this is resolved.`);
         setLoading(false);
       });
@@ -125,7 +145,23 @@ export default function Dashboard() {
   const toggle = (id) => setExpanded(expanded === id ? null : id);
 
   const updateTrack = (id, field, value) => {
+    setSyncError(null);
     setDashboardDocument((prev) => updateTrackField(prev, id, field, value));
+  };
+
+  const updateOpportunity = (id, field, value) => {
+    setSyncError(null);
+    setDashboardDocument((prev) => updateOpportunityField(prev, id, field, value));
+  };
+
+  const handleAddOpportunity = () => {
+    setSyncError(null);
+    setDashboardDocument((prev) => addOpportunity(prev));
+  };
+
+  const handleRemoveOpportunity = (id) => {
+    setSyncError(null);
+    setDashboardDocument((prev) => removeOpportunity(prev, id));
   };
 
   const copyPrompt = (id, prompt) => {
@@ -135,10 +171,18 @@ export default function Dashboard() {
   };
 
   const handleSave = async () => {
+    if (getIncompleteOpportunities(dashboardDocument).length > 0) {
+      setSyncStatus("error");
+      setSyncError("Each opportunity needs a company and next action before you can save.");
+      setTimeout(() => { setSyncStatus(null); }, 5000);
+      return;
+    }
+
     setSyncStatus("saving");
     setSyncError(null);
     try {
       await saveDashboard(dashboardDocument);
+      setSavedDashboardDocument(dashboardDocument);
       setSyncStatus("saved");
       setEditMode(false);
       setTimeout(() => setSyncStatus(null), 2000);
@@ -150,15 +194,27 @@ export default function Dashboard() {
     }
   };
 
+  const handleCancel = () => {
+    setDashboardDocument(savedDashboardDocument);
+    setSyncStatus(null);
+    setSyncError(null);
+    setEditMode(false);
+    setExpanded(null);
+  };
+
   const handleReset = () => {
-    if (window.confirm("Reset all tracks to defaults? This cannot be undone.")) {
+    if (window.confirm("Reset the dashboard to defaults? This will remove tracks, opportunities, and review state.")) {
       const defaultDocument = createDefaultDashboardDocument();
 
       setDashboardDocument(defaultDocument);
-      saveDashboard(defaultDocument).catch(err => {
-        console.error("Gist reset error:", err);
-        setSyncError(`Reset save failed: ${err.message}`);
-      });
+      saveDashboard(defaultDocument)
+        .then(() => {
+          setSavedDashboardDocument(defaultDocument);
+        })
+        .catch(err => {
+          console.error("Gist reset error:", err);
+          setSyncError(`Reset save failed: ${err.message}`);
+        });
       setEditMode(false);
     }
   };
@@ -238,6 +294,19 @@ export default function Dashboard() {
         .btn-save.error { background: #3a1a1a; border-color: #6a2a2a; color: #cc5555; }
         .btn-reset { background: transparent; border-color: #2a1a1a; color: #663333; font-size: 9px; }
         .btn-reset:hover { border-color: #553333; color: #cc5555; }
+        .btn-add { background: transparent; border-color: #2a3d2a; color: #6fcf97; }
+        .btn-add:hover { border-color: #4f8a68; color: #b8ffd1; background: #101710; }
+        .btn-remove-opportunity {
+          background: transparent;
+          border-color: #3a2222;
+          color: #aa6f6f;
+          width: 100%;
+        }
+        .btn-remove-opportunity:hover {
+          border-color: #6a3434;
+          color: #ff9898;
+          background: #1b1010;
+        }
 
         .tracks { padding: 28px 40px; display: flex; flex-direction: column; gap: 2px; }
 
@@ -415,6 +484,12 @@ export default function Dashboard() {
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
+        .opportunities-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
         .opportunity-list {
           display: flex;
           flex-direction: column;
@@ -426,6 +501,12 @@ export default function Dashboard() {
           align-items: start;
           padding: 16px 24px;
           border-top: 1px solid #141414;
+        }
+        .opportunity-row.editing {
+          align-items: stretch;
+        }
+        .opportunity-row.invalid {
+          background: #130d0d;
         }
         .opportunity-row:first-child {
           border-top: none;
@@ -467,6 +548,22 @@ export default function Dashboard() {
           align-items: flex-end;
           gap: 8px;
         }
+        .opportunity-status-editor {
+          align-items: stretch;
+          gap: 10px;
+        }
+        .opportunity-status-select {
+          font-family: 'DM Mono', monospace;
+          font-size: 10px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          border: 1px solid #333;
+          background: #101010;
+          color: #fff;
+          padding: 9px 10px;
+          border-radius: 2px;
+          outline: none;
+        }
         .opportunity-status-badge {
           font-size: 9px;
           color: #999;
@@ -487,6 +584,29 @@ export default function Dashboard() {
           letter-spacing: 0.08em;
           text-transform: uppercase;
           text-align: right;
+        }
+        .opportunity-field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-width: 0;
+        }
+        .opportunity-inline-field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .opportunity-empty {
+          padding: 20px 24px 24px;
+          border-top: 1px solid #141414;
+          font-size: 12px;
+          line-height: 1.7;
+          color: #666;
+        }
+        .opportunity-validation {
+          font-size: 10px;
+          color: #ff8d8d;
+          line-height: 1.5;
         }
         .review-section {
           padding: 0 40px 28px;
@@ -668,6 +788,7 @@ export default function Dashboard() {
           </div>
           {editMode ? (
             <>
+              <button className="btn btn-edit" onClick={handleCancel}>Cancel</button>
               <button className="btn btn-reset" onClick={handleReset}>Reset</button>
               <button
                 className={`btn btn-save${syncStatus === "error" ? " error" : ""}`}
@@ -873,21 +994,152 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {openOpportunities.length > 0 && (
-        <div className="opportunities-section">
-          <div className="opportunities-shell">
-            <div className="opportunities-header">
-              <div>
-                <div className="opportunities-title">Open Opportunities</div>
+      <div className="opportunities-section">
+        <div className="opportunities-shell">
+          <div className="opportunities-header">
+            <div>
+                <div className="opportunities-title">Opportunities</div>
                 <div className="opportunities-subtitle">
-                  {openOpportunities.length} active conversation{openOpportunities.length === 1 ? "" : "s"}
+                  {editMode
+                  ? `${pluralize(
+                      allOpportunities.length,
+                      "total opportunity",
+                      "total opportunities"
+                    )} · ${pluralize(
+                      openOpportunities.length,
+                      "open opportunity",
+                      "open opportunities"
+                    )}`
+                  : pluralize(openOpportunities.length, "active conversation")}
                 </div>
-              </div>
             </div>
+            {editMode && (
+              <div className="opportunities-actions">
+                <button className="btn btn-add" onClick={handleAddOpportunity}>
+                  Add Opportunity
+                </button>
+              </div>
+            )}
+          </div>
 
+          {visibleOpportunities.length > 0 ? (
             <div className="opportunity-list">
-              {openOpportunities.map((opportunity) => {
+              {visibleOpportunities.map((opportunity) => {
                 const isDue = dueFollowUpIds.has(opportunity.id);
+                const isIncomplete = incompleteOpportunityIds.has(opportunity.id);
+
+                if (editMode) {
+                  return (
+                    <div
+                      key={opportunity.id}
+                      className={`opportunity-row editing${isIncomplete ? " invalid" : ""}`}
+                    >
+                      <div className="opportunity-field-group">
+                        <div>
+                          <div className="opportunity-stage-label">Company</div>
+                          <EditableField
+                            aria-label={`Company for ${opportunity.id}`}
+                            placeholder="Company"
+                            value={opportunity.company}
+                            onChange={(value) => updateOpportunity(opportunity.id, "company", value)}
+                            style={{ color: "#fff", fontSize: "12px" }}
+                          />
+                        </div>
+                        <div className="opportunity-inline-field">
+                          <div className="opportunity-stage-label">Role</div>
+                          <EditableField
+                            aria-label={`Role for ${opportunity.id}`}
+                            placeholder="Role (optional)"
+                            value={opportunity.role}
+                            onChange={(value) => updateOpportunity(opportunity.id, "role", value)}
+                            style={{ color: "#666", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.12em" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="opportunity-field-group">
+                        <div>
+                          <div className="opportunity-stage-label">Stage</div>
+                          <EditableField
+                            aria-label={`Stage for ${opportunity.id}`}
+                            placeholder="Stage (optional)"
+                            value={opportunity.stage}
+                            onChange={(value) => updateOpportunity(opportunity.id, "stage", value)}
+                            style={{ color: "#fff", fontSize: "12px" }}
+                          />
+                        </div>
+                        <div className="opportunity-inline-field">
+                          <div className="opportunity-stage-label">Follow Up By</div>
+                          <EditableField
+                            aria-label={`Follow up by for ${opportunity.id}`}
+                            type="date"
+                            value={opportunity.followUpBy}
+                            onChange={(value) => updateOpportunity(opportunity.id, "followUpBy", value)}
+                            style={{ color: "#fff", fontSize: "11px" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="opportunity-field-group">
+                        <div>
+                          <div className="opportunity-next-label">Next Action</div>
+                          <EditableField
+                            aria-label={`Next action for ${opportunity.id}`}
+                            multiline
+                            placeholder="Define the next concrete step."
+                            value={opportunity.nextAction}
+                            onChange={(value) => updateOpportunity(opportunity.id, "nextAction", value)}
+                            style={{ color: "#FFFFF0", fontSize: "12px", lineHeight: "1.6", minHeight: "72px" }}
+                          />
+                        </div>
+                        <div className="opportunity-inline-field">
+                          <div className="opportunity-next-label">Notes</div>
+                          <EditableField
+                            aria-label={`Notes for ${opportunity.id}`}
+                            multiline
+                            placeholder="Notes (optional)"
+                            value={opportunity.notes}
+                            onChange={(value) => updateOpportunity(opportunity.id, "notes", value)}
+                            style={{ color: "#999", fontSize: "11px", lineHeight: "1.6", minHeight: "72px" }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="opportunity-status opportunity-status-editor">
+                        <div className="opportunity-stage-label">Status</div>
+                        <select
+                          className="opportunity-status-select"
+                          aria-label={`Status for ${opportunity.id}`}
+                          value={opportunity.status}
+                          onChange={(event) =>
+                            updateOpportunity(opportunity.id, "status", event.target.value)
+                          }
+                        >
+                          {OPPORTUNITY_STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>
+                              {status.replace("-", " ")}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn btn-remove-opportunity"
+                          onClick={() => {
+                            if (window.confirm("Remove this opportunity? This action cannot be undone.")) {
+                              handleRemoveOpportunity(opportunity.id);
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                        {isIncomplete && (
+                          <div className="opportunity-validation">
+                            Company and next action are required to save.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={opportunity.id} className="opportunity-row">
@@ -928,9 +1180,15 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          </div>
+          ) : (
+            <div className="opportunity-empty">
+              {editMode
+                ? "No opportunities yet. Add one to start tracking a live interview or conversation."
+                : "No open opportunities right now."}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="footer">
         <div>ONE NEXT ACTION PER TRACK · WRITE WEEKLY</div>

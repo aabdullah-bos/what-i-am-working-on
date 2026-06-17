@@ -85,9 +85,9 @@ function createDefaultTracks() {
   return defaultTracks.map(cloneTrack);
 }
 
-function createDefaultOpportunity(index = 0) {
+function createOpportunityRecord(id) {
   return {
-    id: `opportunity-${index + 1}`,
+    id,
     company: "",
     role: "",
     stage: "",
@@ -96,6 +96,27 @@ function createDefaultOpportunity(index = 0) {
     followUpBy: "",
     notes: "",
   };
+}
+
+function createDefaultOpportunity(index = 0) {
+  return createOpportunityRecord(`opportunity-${index + 1}`);
+}
+
+function getNextOpportunityId(opportunities) {
+  const maxNumericId = opportunities.reduce((maxValue, opportunity) => {
+    const match =
+      typeof opportunity?.id === "string"
+        ? opportunity.id.match(/^opportunity-(\d+)$/)
+        : null;
+
+    if (!match) {
+      return maxValue;
+    }
+
+    return Math.max(maxValue, Number(match[1]));
+  }, 0);
+
+  return `opportunity-${maxNumericId + 1}`;
 }
 
 function normalizeTrack(track, fallbackTrack) {
@@ -233,6 +254,33 @@ export function updateOpportunityField(document, id, field, value) {
       opportunity.id === id ? { ...opportunity, [field]: value } : opportunity
     ),
   };
+}
+
+export function addOpportunity(document) {
+  return {
+    ...document,
+    opportunities: [
+      ...document.opportunities,
+      createOpportunityRecord(getNextOpportunityId(document.opportunities)),
+    ],
+  };
+}
+
+export function removeOpportunity(document, id) {
+  return {
+    ...document,
+    opportunities: document.opportunities.filter(
+      (opportunity) => opportunity.id !== id
+    ),
+  };
+}
+
+export function getIncompleteOpportunities(document) {
+  return document.opportunities.filter(
+    (opportunity) =>
+      !hasMeaningfulNextAction(opportunity.company) ||
+      !hasMeaningfulNextAction(opportunity.nextAction)
+  );
 }
 
 export function getOpenOpportunities(document) {

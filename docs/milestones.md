@@ -356,6 +356,37 @@ Exit criteria:
 - each new product slice arrives with passing scenario tests,
 - the test suite grows with the product instead of lagging behind it.
 
+### Milestone 7: Add opportunity capture to the dashboard
+
+Goal:
+
+Close the gap between read-only opportunity support and real opportunity management by letting the user create a new opportunity from the dashboard.
+
+Work:
+
+- keep the opportunities section visible even when there are no current open opportunities,
+- add an `Add Opportunity` action inside the existing opportunities section,
+- add a pure data helper for inserting a new `Opportunity` record into the dashboard document,
+- support inline editing of the new opportunity's fields inside the existing dashboard edit workflow,
+- require `company` and `nextAction` before save, while defaulting `status` to `prepare`,
+- persist newly created opportunities through the current Gist save flow,
+- update empty, error, and reset behavior so opportunity creation does not create misleading or destructive UX,
+- and add executable tests for the empty state, add flow, save payload, and reload behavior.
+
+Spec coverage:
+
+- `Manage multiple opportunities`
+- `Capture a new opportunity`
+- reinforces `Update the operating picture`
+
+Exit criteria:
+
+- the user can add an opportunity without leaving the dashboard,
+- the opportunities section remains usable when there are zero current opportunities,
+- a newly added opportunity appears immediately in the opportunities list after save,
+- the saved opportunity is still present after reload,
+- and the test suite covers the creation path, not just read-only rendering.
+
 ## Recommended implementation order
 
 1. Milestone 0
@@ -365,6 +396,7 @@ Exit criteria:
 5. Milestone 4
 6. Milestone 5
 7. Milestone 6
+8. Milestone 7
 
 This order keeps storage and domain structure ahead of new UI growth, while moving test infrastructure up early enough to protect the rest of the work.
 
@@ -376,19 +408,10 @@ This order keeps storage and domain structure ahead of new UI growth, while movi
 - Do introduce a versioned dashboard document before adding new product concepts.
 - Do keep the presentation layer thin and dependent on data and storage modules.
 
-## One ambiguity to resolve soon
+## Resolved product direction
 
-The spec still leaves one important product choice open:
+The earlier question about a separate opportunities page has been resolved:
 
-- should opportunities live inside the main dashboard page,
-- or in a dedicated opportunities view?
-
-Recommendation:
-
-Start with opportunities as a dedicated section inside the main dashboard rather than a fully separate page.
-
-Rationale:
-
-- it preserves the product's core value of unified orientation,
-- it keeps navigation simple,
-- and it is the smallest UI step that makes multiple opportunities first-class.
+- opportunities stay inside the main dashboard for the current phase,
+- the opportunities section is the place to extend with capture and later editing behavior,
+- and Milestone 7 should deepen that section instead of introducing new navigation.

@@ -1,11 +1,14 @@
 import {
+  addOpportunity,
   createDefaultDashboardDocument,
   DASHBOARD_VERSION,
+  getIncompleteOpportunities,
   getOpenOpportunities,
   getDueFollowUps,
   getReviewSummary,
   getStaleTracks,
   normalizeDashboardDocument,
+  removeOpportunity,
   updateOpportunityField,
   updateTrackField,
 } from "./dashboard";
@@ -222,6 +225,123 @@ describe("dashboard document helpers", () => {
       expect.objectContaining({
         id: "button-devops",
         nextAction: "Draft post-interview follow-up",
+      }),
+    ]);
+  });
+
+  test("adds a new opportunity with a default status and a unique generated id", () => {
+    const document = normalizeDashboardDocument({
+      version: DASHBOARD_VERSION,
+      tracks: [],
+      opportunities: [
+        {
+          id: "button-devops",
+          company: "Button",
+          role: "DevOps Engineer",
+          stage: "Phone Screen",
+          status: "prepare",
+          nextAction: "Draft prep notes",
+        },
+        {
+          id: "opportunity-3",
+          company: "Existing Draft",
+          role: "",
+          stage: "",
+          status: "waiting",
+          nextAction: "Wait for reply",
+        },
+      ],
+    });
+
+    const updated = addOpportunity(document);
+    const newOpportunity = updated.opportunities[updated.opportunities.length - 1];
+
+    expect(newOpportunity).toEqual(
+      expect.objectContaining({
+        id: "opportunity-4",
+        company: "",
+        role: "",
+        stage: "",
+        status: "prepare",
+        nextAction: "",
+        followUpBy: "",
+        notes: "",
+      })
+    );
+  });
+
+  test("removes a draft opportunity without changing the rest of the document", () => {
+    const document = normalizeDashboardDocument({
+      version: DASHBOARD_VERSION,
+      tracks: [],
+      opportunities: [
+        {
+          id: "button-devops",
+          company: "Button",
+          role: "DevOps Engineer",
+          stage: "Phone Screen",
+          status: "prepare",
+          nextAction: "Draft prep notes",
+        },
+        {
+          id: "opportunity-2",
+          company: "",
+          role: "",
+          stage: "",
+          status: "prepare",
+          nextAction: "",
+        },
+      ],
+    });
+
+    const updated = removeOpportunity(document, "opportunity-2");
+
+    expect(updated.opportunities).toEqual([
+      expect.objectContaining({
+        id: "button-devops",
+      }),
+    ]);
+    expect(updated.tracks).toEqual(document.tracks);
+  });
+
+  test("identifies opportunities missing required company or next action fields", () => {
+    const document = normalizeDashboardDocument({
+      version: DASHBOARD_VERSION,
+      tracks: [],
+      opportunities: [
+        {
+          id: "complete-opportunity",
+          company: "Button",
+          role: "DevOps Engineer",
+          stage: "Phone Screen",
+          status: "prepare",
+          nextAction: "Draft prep notes",
+        },
+        {
+          id: "missing-company",
+          company: "",
+          role: "Platform Engineer",
+          stage: "Intro Call",
+          status: "prepare",
+          nextAction: "Draft questions",
+        },
+        {
+          id: "missing-next-action",
+          company: "OpenAI",
+          role: "Engineer",
+          stage: "Screen",
+          status: "prepare",
+          nextAction: "   ",
+        },
+      ],
+    });
+
+    expect(getIncompleteOpportunities(document)).toEqual([
+      expect.objectContaining({
+        id: "missing-company",
+      }),
+      expect.objectContaining({
+        id: "missing-next-action",
       }),
     ]);
   });
