@@ -263,7 +263,7 @@ export default function Dashboard() {
         }
         .header-sub {
           font-size: 11px;
-          color: #555;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           margin-top: 6px;
@@ -274,7 +274,7 @@ export default function Dashboard() {
           gap: 12px;
           flex-wrap: wrap;
         }
-        .date-block { font-size: 11px; color: #444; letter-spacing: 0.1em; }
+        .date-block { font-size: 11px; color: #FFFFF0; letter-spacing: 0.1em; }
 
         .btn {
           font-family: 'DM Mono', monospace;
@@ -287,8 +287,8 @@ export default function Dashboard() {
           border: 1px solid;
           transition: all 0.15s;
         }
-        .btn-edit { background: transparent; border-color: #333; color: #666; }
-        .btn-edit:hover { border-color: #888; color: #ccc; background: #161616; }
+        .btn-edit { background: transparent; border-color: #555; color: #FFFFF0; }
+        .btn-edit:hover { border-color: #FFFFF0; color: #FFFFF0; background: #161616; }
         .btn-save { background: #1a3a1a; border-color: #2a6a2a; color: #55cc77; }
         .btn-save:hover { background: #1f4a1f; }
         .btn-save.error { background: #3a1a1a; border-color: #6a2a2a; color: #cc5555; }
@@ -327,7 +327,7 @@ export default function Dashboard() {
           gap: 20px;
           padding: 16px 24px;
         }
-        .track-tag { font-size: 9px; letter-spacing: 0.16em; font-weight: 500; text-transform: uppercase; }
+        .track-tag { font-size: 10px; letter-spacing: 0.16em; font-weight: 500; text-transform: uppercase; }
         .track-main {
           display: grid;
           grid-template-columns: minmax(0, 1fr) 320px;
@@ -338,7 +338,7 @@ export default function Dashboard() {
         }
         .track-name {
           font-family: 'Bebas Neue', sans-serif;
-          font-size: clamp(18px, 3vw, 26px);
+          font-size: clamp(20px, 3.3vw, 29px);
           letter-spacing: 0.06em;
           color: #fff;
           min-width: 0;
@@ -480,7 +480,7 @@ export default function Dashboard() {
         }
         .opportunities-subtitle {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
@@ -519,7 +519,7 @@ export default function Dashboard() {
         }
         .opportunity-role {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           margin-top: 4px;
@@ -527,7 +527,7 @@ export default function Dashboard() {
         .opportunity-stage-label,
         .opportunity-next-label {
           font-size: 9px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           margin-bottom: 6px;
@@ -566,10 +566,10 @@ export default function Dashboard() {
         }
         .opportunity-status-badge {
           font-size: 9px;
-          color: #999;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          border: 1px solid #2a2a2a;
+          border: 1px solid #555;
           padding: 4px 8px;
           white-space: nowrap;
         }
@@ -580,7 +580,7 @@ export default function Dashboard() {
         }
         .opportunity-followup-date {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           text-align: right;
@@ -632,7 +632,7 @@ export default function Dashboard() {
         }
         .review-subtitle {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
@@ -654,7 +654,7 @@ export default function Dashboard() {
         }
         .review-metric-label {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           margin-top: 6px;
@@ -671,7 +671,7 @@ export default function Dashboard() {
         }
         .review-panel-title {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           margin-bottom: 12px;
@@ -700,14 +700,14 @@ export default function Dashboard() {
         }
         .review-item-meta {
           font-size: 10px;
-          color: #666;
+          color: #FFFFF0;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           white-space: nowrap;
         }
         .review-empty {
           font-size: 12px;
-          color: #666;
+          color: #FFFFF0;
           line-height: 1.6;
         }
 
@@ -780,7 +780,7 @@ export default function Dashboard() {
       <div className="header">
         <div className="header-left">
           <h1>WHAT I'M BUILDING</h1>
-          <div className="header-sub">Aquil Harrison · {tracks.length} Active Tracks</div>
+          <div className="header-sub">Aquil Abdullah · {tracks.length} Active Tracks</div>
         </div>
         <div className="header-right">
           <div className="date-block">
@@ -823,7 +823,7 @@ export default function Dashboard() {
                     <EditableField
                       value={track.tag}
                       onChange={v => updateTrack(track.id, "tag", v)}
-                      style={{ color: track.color, fontSize: "9px", letterSpacing: "0.16em", textTransform: "uppercase" }}
+                      style={{ color: track.color, fontSize: "10px", letterSpacing: "0.16em", textTransform: "uppercase" }}
                     />
                   ) : track.tag}
                 </div>
@@ -834,7 +834,7 @@ export default function Dashboard() {
                       <EditableField
                         value={track.label}
                         onChange={v => updateTrack(track.id, "label", v)}
-                        style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(18px,3vw,26px)", letterSpacing: "0.06em", color: "#fff" }}
+                        style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(20px,3.3vw,29px)", letterSpacing: "0.06em", color: "#fff" }}
                       />
                     ) : track.label}
                   </div>
