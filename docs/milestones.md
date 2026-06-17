@@ -16,7 +16,7 @@ Today the application collapses three responsibilities into one file:
 - the storage logic,
 - and the presentation logic.
 
-This is visible in [src/aquil-dashboard.jsx](/Users/aquilabdullah/devel/projects/what-i-am-working-on/src/aquil-dashboard.jsx:1), where default data, Gist fetch and save behavior, state management, and UI rendering all live together.
+This is visible in [src/aquil-dashboard.jsx](../src/aquil-dashboard.jsx#L1), where default data, Gist fetch and save behavior, state management, and UI rendering all live together.
 
 That shape is acceptable for the first prototype, but it is the wrong base for adding first-class opportunities.
 
