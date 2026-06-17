@@ -47,7 +47,19 @@ Use BDD-style language:
 
 This prevents building data structures that do not map to lived behavior.
 
-### 4. Choose the smallest truthful domain model
+### 4. Turn scenarios into executable tests first
+
+Before implementing a feature, convert the chosen BDD scenarios into tests that can fail for the right reason.
+
+Use a red, then green workflow:
+
+- `Red`: write or update a test that expresses the intended behavior and confirm it fails.
+- `Implement`: make the smallest change that can satisfy the scenario.
+- `Green`: confirm the test passes and the behavior is stable.
+
+Manual checking is still useful, but it does not replace executable verification.
+
+### 5. Choose the smallest truthful domain model
 
 Introduce only the concepts required to make the scenario true.
 
@@ -58,7 +70,7 @@ For this app:
 
 Do not overload one object when the user is clearly managing two different kinds of things.
 
-### 5. Build vertical slices, not disconnected layers
+### 6. Build vertical slices, not disconnected layers
 
 Implement one end-to-end slice at a time:
 
@@ -70,13 +82,13 @@ Implement one end-to-end slice at a time:
 
 A slice is done when the user can actually use it, not when the internal model looks clean.
 
-### 6. Keep the next action visible
+### 7. Keep the next action visible
 
 Every feature should make next actions easier to see, choose, or complete.
 
 This is both a product principle and an engineering filter. If a change increases data without increasing action clarity, it likely needs to be simplified.
 
-### 7. Make review part of the product and the process
+### 8. Make review part of the product and the process
 
 The product should support review rhythms, and the engineering process should do the same.
 
@@ -86,9 +98,11 @@ After each meaningful change:
 - confirm what new complexity was introduced,
 - decide what the next missing behavior is.
 
-### 8. Document decisions while they are fresh
+### 9. Document decisions while they are fresh
 
-Update the README, spec, and method when product assumptions change. The repo should explain:
+Record implementation-level decisions in `docs/decisions.md` when product assumptions, sequencing, or implementation boundaries change.
+
+Update the README, spec, method, and ADRs when they are the appropriate source of truth. The repo should explain:
 
 - what the app is,
 - who it is for,
@@ -101,10 +115,11 @@ Use this loop for each feature:
 
 1. Capture the tension in one sentence.
 2. Write one or more BDD scenarios.
-3. Identify the minimum domain change.
-4. Implement the smallest usable vertical slice.
-5. Verify the behavior manually and, where practical, with tests.
-6. Record what changed in the docs.
+3. Implement or update tests that express those scenarios and confirm they fail first.
+4. Identify the minimum domain change needed to make the tests pass.
+5. Implement the smallest usable vertical slice.
+6. Confirm the tests pass, then manually verify the user-facing behavior.
+7. Record implementation decisions in `docs/decisions.md` and update any other affected docs.
 
 ## Definition of done
 
@@ -114,6 +129,7 @@ A change is done when:
 - the interface reflects the correct domain concepts,
 - success and failure states are both understandable,
 - the data model is still simpler than the problem it solves,
+- the relevant scenario tests are passing,
 - and the docs explain the new behavior.
 
 ## Filters for deciding what to build

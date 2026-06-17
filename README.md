@@ -79,9 +79,11 @@ npm run build
 
 ## Product documents
 
-- Spec: [docs/spec.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/spec.md)
-- Software method: [docs/software-method.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/software-method.md)
-- ADR 001, persistence for current phase: [docs/adr-001-gist-persistence.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/adr-001-gist-persistence.md)
+- Spec: [docs/spec.md](docs/spec.md)
+- Software method: [docs/software-method.md](docs/software-method.md)
+- Decision log: [docs/decisions.md](docs/decisions.md)
+- ADR 001, persistence for current phase: [docs/adr-001-gist-persistence.md](docs/adr-001-gist-persistence.md)
+- Milestones and implementation pipeline: [docs/milestones.md](docs/milestones.md)
 
 ## Near-term product direction
 
