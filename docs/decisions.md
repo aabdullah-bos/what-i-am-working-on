@@ -235,3 +235,30 @@ Rationale:
 - it keeps the next-action starting point visually consistent across rows,
 - it removes layout drift caused by badge width differences,
 - and it preserves the established track language while solving the actual CSS problem at the layout layer.
+
+### Add opportunities inline inside the dashboard edit flow first
+
+Context:
+
+The product can now render first-class opportunities, but there is still no path to create one from the UI. The current dashboard already has an explicit edit mode and a manual save model backed by one versioned document.
+
+Decision:
+
+Implement the first add-opportunity flow inline inside the existing opportunities section while the dashboard is in edit mode.
+
+In this first creation slice:
+
+- keep the opportunities section visible even when there are no current opportunities,
+- add an `Add Opportunity` action in that section,
+- create the new record inside the existing dashboard document,
+- require `company` and `nextAction`,
+- default `status` to `prepare`,
+- keep `role`, `stage`, `followUpBy`, and `notes` optional,
+- and persist through the existing `Save Changes` flow instead of adding autosave or a separate modal workflow.
+
+Rationale:
+
+- it is the smallest end-to-end slice that closes the current product gap,
+- it reuses the existing storage and editing model instead of introducing a second workflow,
+- it keeps new opportunity capture close to the dashboard's daily orientation surface,
+- and it preserves the product principle that each active item should resolve to a concrete next move.

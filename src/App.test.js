@@ -126,6 +126,127 @@ describe("App dashboard behavior", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  test("keeps the opportunities section visible even when there are no open opportunities", async () => {
+    render(<App />);
+
+    expect(await screen.findByText("Opportunities")).toBeInTheDocument();
+    expect(screen.getByText("No open opportunities right now.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dashboard" }));
+
+    expect(
+      screen.getByText("No opportunities yet. Add one to start tracking a live interview or conversation.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Opportunity" })).toBeInTheDocument();
+  });
+
+  test("adds a new opportunity in edit mode and saves it through the storage layer", async () => {
+    render(<App />);
+
+    await screen.findByText("RAES & MeFighter");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dashboard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Opportunity" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Company for opportunity-1" }), {
+      target: { value: "OpenAI" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Role for opportunity-1" }), {
+      target: { value: "Frontend Engineer" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Stage for opportunity-1" }), {
+      target: { value: "Recruiter Screen" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Next action for opportunity-1" }), {
+      target: { value: "Send a follow-up note and draft interview prep bullets" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => {
+      expect(saveDashboard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          version: 1,
+          opportunities: expect.arrayContaining([
+            expect.objectContaining({
+              id: "opportunity-1",
+              company: "OpenAI",
+              role: "Frontend Engineer",
+              stage: "Recruiter Screen",
+              status: "prepare",
+              nextAction: "Send a follow-up note and draft interview prep bullets",
+            }),
+          ]),
+        })
+      );
+    });
+  });
+
+  test("cancels unsaved dashboard edits and restores the last saved state", async () => {
+    const document = createTestDocument();
+
+    document.opportunities = [
+      {
+        id: "button-devops",
+        company: "Button",
+        role: "DevOps Engineer",
+        stage: "Phone Screen",
+        status: "prepare",
+        nextAction: "Draft prep notes",
+        followUpBy: "",
+        notes: "",
+      },
+    ];
+
+    loadDashboard.mockResolvedValue(document);
+
+    render(<App />);
+
+    await screen.findByText("RAES & MeFighter");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dashboard" }));
+
+    fireEvent.change(screen.getByDisplayValue("RAES & MeFighter"), {
+      target: { value: "RAES Updated" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Company for button-devops" }), {
+      target: { value: "Button Updated" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Opportunity" }));
+
+    expect(screen.getByDisplayValue("RAES Updated")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Company for button-devops" })).toHaveValue(
+      "Button Updated"
+    );
+    expect(screen.getByRole("textbox", { name: "Company for opportunity-1" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByText("RAES & MeFighter")).toBeInTheDocument();
+    expect(screen.getByText("Button")).toBeInTheDocument();
+    expect(screen.queryByText("RAES Updated")).not.toBeInTheDocument();
+    expect(screen.queryByText("Button Updated")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Company for opportunity-1" })).not.toBeInTheDocument();
+    expect(saveDashboard).not.toHaveBeenCalled();
+  });
+
+  test("blocks saving when a new opportunity is missing required fields", async () => {
+    render(<App />);
+
+    await screen.findByText("RAES & MeFighter");
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dashboard" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Opportunity" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    expect(saveDashboard).not.toHaveBeenCalled();
+    expect(
+      screen.getByText((content) =>
+        content.includes("Each opportunity needs a company and next action before you can save.")
+      )
+    ).toBeInTheDocument();
+  });
+
   test("shows open opportunities with next action and overdue follow-up state", async () => {
     const document = createTestDocument();
 
@@ -166,7 +287,7 @@ describe("App dashboard behavior", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("Open Opportunities")).toBeInTheDocument();
+    expect(await screen.findByText("Opportunities")).toBeInTheDocument();
     expect(screen.getAllByText("Button").length).toBeGreaterThan(0);
     expect(screen.getByText("Phone Screen")).toBeInTheDocument();
     expect(
