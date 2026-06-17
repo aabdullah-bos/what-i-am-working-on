@@ -83,6 +83,7 @@ Desired outcome:
 
 - The user can scan the dashboard in under two minutes.
 - Each visible item answers, "what is this?" and "what is next?"
+- On narrower screens, each track's next action stays visually grouped with that track instead of drifting into a detached right edge.
 
 ### Scenario 2: Interview preparation
 
@@ -121,6 +122,7 @@ Feature: Review active tracks
     And each track should show its label
     And each track should show its urgency
     And each track should show its next action
+    And each track's next action should stay grouped with that track for compact scanning
 ```
 
 ### Feature: Inspect one track in context

@@ -1,6 +1,18 @@
 import { useState, useEffect } from "react";
-
-const URGENCY_OPTIONS = ["immediate", "sprint", "slow-burn", "recurring", "weekly"];
+import {
+  createDefaultDashboardDocument,
+  getDueFollowUps,
+  getOpenOpportunities,
+  getReviewSummary,
+  TRACK_URGENCY_OPTIONS,
+  updateTrackField,
+} from "./data/dashboard";
+import {
+  createFallbackDashboardDocument,
+  getGistConfigError,
+  loadDashboard,
+  saveDashboard,
+} from "./storage/gist-dashboard-storage";
 
 const urgencyStyles = {
   immediate: { label: "NOW", bg: "#FF3333" },
@@ -9,106 +21,6 @@ const urgencyStyles = {
   recurring: { label: "WEEKLY", bg: "#555" },
   weekly:    { label: "WEEKLY", bg: "#555" },
 };
-
-const defaultTracks = [
-  {
-    id: "raes-mefighter",
-    label: "RAES & MeFighter",
-    tag: "AI BUILDS",
-    color: "#E8FF47",
-    urgency: "slow-burn",
-    focus: "Conversational AI cognition, picking up language cues, model limitations",
-    nextAction: "Read one paper or build one small experiment on conversation state this week",
-    writePrompt: "What's one thing I learned about conversational AI this week and how does it apply to RAES?",
-    context: "Deep, compounds over time. Pair reading with small builds. Output = decisions made inside the product.",
-  },
-  {
-    id: "dots",
-    label: "DOTS Move",
-    tag: "PERFORMANCE",
-    color: "#FF6B35",
-    urgency: "sprint",
-    focus: "CSR vs SSR vs ISR, Core Web Vitals (FCP, LCP), industry benchmarks",
-    nextAction: "Write a 1-page trade-off doc for DOTS: what rendering strategy fits the app's actual usage pattern?",
-    writePrompt: "What did my benchmarking reveal, and what's the single biggest performance lever I haven't pulled yet?",
-    context: "Bounded and learnable fast. A decision doc for your own app doubles as interview material.",
-  },
-  {
-    id: "interviews",
-    label: "Interviews & Opportunities",
-    tag: "CAREER",
-    color: "#00C2FF",
-    urgency: "immediate",
-    focus: "Button (DevOps) · Ryan Coyne options platform (tbd depth)",
-    nextAction: "Button prep today. For Ryan: one conversation to assess seriousness before going deep on options.",
-    writePrompt: "What's my narrative for why I'm the right person for this role, in two sentences?",
-    context: "Two very different asks. Don't conflate them. Button is now. Ryan depends on deal seriousness.",
-  },
-  {
-    id: "networking",
-    label: "Networking",
-    tag: "PIPELINE",
-    color: "#B47FFF",
-    urgency: "recurring",
-    focus: "Finding people doing interesting things · Following up without friction",
-    nextAction: "After every new contact: name + context + one follow-up action into Apple Notes within 24hrs",
-    writePrompt: "Who did I meet this week, what are they building, and what's the one thing I can offer them?",
-    context: "Fix the intake first. One note, fast capture, weekly triage. No CMS.",
-  },
-  {
-    id: "writing",
-    label: "Writing",
-    tag: "LEVERAGE",
-    color: "#FF3CAC",
-    urgency: "weekly",
-    focus: '"What I\'m building" posts · Answer the what-do-you-do question publicly',
-    nextAction: "Write one short post this week. Anchor it in a moment from one of your builds.",
-    writePrompt: "What's one thing I'm building right now that surprised me, and why does it matter?",
-    context: "This is your force multiplier. One post = interview prep + networking + thinking clarified.",
-  },
-];
-
-// ── Gist API ────────────────────────────────────────────────────────────────
-const GIST_ID       = process.env.REACT_APP_GIST_ID;
-const GITHUB_TOKEN  = process.env.REACT_APP_GITHUB_TOKEN;
-const GIST_FILENAME = "dashboard-tracks.json";
-
-const gistUrl = () =>
-  process.env.NODE_ENV === "production"
-    ? `https://api.github.com/gists/${GIST_ID}`
-    : `/gists/${GIST_ID}`;
-  
-async function fetchFromGist() {
-  const res = await fetch(gistUrl(), {
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.v3+json",
-    },
-  });
-  if (!res.ok) throw new Error(`Gist fetch failed: ${res.status}`);
-  const data = await res.json();
-  const content = data.files[GIST_FILENAME]?.content;
-  if (!content) throw new Error("Gist file not found");
-  const parsed = JSON.parse(content);
-  return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultTracks;
-}
-
-async function saveToGist(tracks) {
- const res = await fetch(gistUrl(), {
-    method: "PATCH",
-    headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.v3+json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      files: {
-        [GIST_FILENAME]: { content: JSON.stringify(tracks, null, 2) },
-      },
-    }),
-  });
-  if (!res.ok) throw new Error(`Gist save failed: ${res.status}`);
-}
 
 // ── Editable field ──────────────────────────────────────────────────────────
 function EditableField({ value, onChange, multiline, style }) {
@@ -156,28 +68,51 @@ function EditableField({ value, onChange, multiline, style }) {
   );
 }
 
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function pluralize(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 // ── Dashboard ───────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [tracks, setTracks]         = useState(defaultTracks);
-  const [loading, setLoading]       = useState(true);
-  const [loadError, setLoadError]   = useState(null);
+  const [dashboardDocument, setDashboardDocument] = useState(createDefaultDashboardDocument);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [syncStatus, setSyncStatus] = useState(null); // null | "saving" | "saved" | "error"
-  const [syncError, setSyncError]   = useState(null);
-  const [expanded, setExpanded]     = useState(null);
-  const [editMode, setEditMode]     = useState(false);
-  const [copied, setCopied]         = useState(null);
+  const [syncError, setSyncError] = useState(null);
+  const [expanded, setExpanded] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const tracks = dashboardDocument.tracks;
+  const todayIsoDate = getTodayIsoDate();
+  const openOpportunities = getOpenOpportunities(dashboardDocument);
+  const dueFollowUpIds = new Set(
+    getDueFollowUps(dashboardDocument, todayIsoDate).map((opportunity) => opportunity.id)
+  );
+  const reviewSummary = getReviewSummary(dashboardDocument, todayIsoDate);
 
   // Load from Gist on mount
   useEffect(() => {
-    if (!GIST_ID || !GITHUB_TOKEN) {
-      setLoadError("Missing REACT_APP_GIST_ID or REACT_APP_GITHUB_TOKEN — check your .env file.");
+    const configError = getGistConfigError();
+
+    if (configError) {
+      setDashboardDocument(createFallbackDashboardDocument());
+      setLoadError(configError);
       setLoading(false);
       return;
     }
-    fetchFromGist()
-      .then(data => { setTracks(data); setLoading(false); })
+
+    loadDashboard()
+      .then((document) => {
+        setDashboardDocument(document);
+        setLoading(false);
+      })
       .catch(err => {
         console.error("Gist load error:", err);
+        setDashboardDocument(createFallbackDashboardDocument());
         setLoadError(`Could not load from Gist (${err.message}). Showing defaults — changes will not be saved until this is resolved.`);
         setLoading(false);
       });
@@ -186,7 +121,7 @@ export default function Dashboard() {
   const toggle = (id) => setExpanded(expanded === id ? null : id);
 
   const updateTrack = (id, field, value) => {
-    setTracks(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+    setDashboardDocument((prev) => updateTrackField(prev, id, field, value));
   };
 
   const copyPrompt = (id, prompt) => {
@@ -199,7 +134,7 @@ export default function Dashboard() {
     setSyncStatus("saving");
     setSyncError(null);
     try {
-      await saveToGist(tracks);
+      await saveDashboard(dashboardDocument);
       setSyncStatus("saved");
       setEditMode(false);
       setTimeout(() => setSyncStatus(null), 2000);
@@ -213,8 +148,10 @@ export default function Dashboard() {
 
   const handleReset = () => {
     if (window.confirm("Reset all tracks to defaults? This cannot be undone.")) {
-      setTracks(defaultTracks);
-      saveToGist(defaultTracks).catch(err => {
+      const defaultDocument = createDefaultDashboardDocument();
+
+      setDashboardDocument(defaultDocument);
+      saveDashboard(defaultDocument).catch(err => {
         console.error("Gist reset error:", err);
         setSyncError(`Reset save failed: ${err.message}`);
       });
@@ -312,27 +249,43 @@ export default function Dashboard() {
 
         .track-header {
           display: grid;
-          grid-template-columns: 80px 1fr auto auto;
+          grid-template-columns: 80px minmax(0, 1fr) 132px;
           align-items: center;
           gap: 20px;
           padding: 16px 24px;
         }
         .track-tag { font-size: 9px; letter-spacing: 0.16em; font-weight: 500; text-transform: uppercase; }
+        .track-main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 320px;
+          align-items: center;
+          gap: 20px;
+          min-width: 0;
+          width: 100%;
+        }
         .track-name {
           font-family: 'Bebas Neue', sans-serif;
           font-size: clamp(18px, 3vw, 26px);
           letter-spacing: 0.06em;
           color: #fff;
+          min-width: 0;
         }
         .track-next {
           font-size: 11px;
           color: #FFFFF0;
-          max-width: 300px;
+          width: 100%;
           line-height: 1.5;
-          text-align: right;
-          display: none;
+          text-align: left;
+          justify-self: end;
         }
-        @media (min-width: 700px) { .track-next { display: block; } }
+        .track-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 132px;
+          justify-content: flex-end;
+          justify-self: end;
+        }
 
         .urgency-badge {
           font-size: 9px;
@@ -430,6 +383,210 @@ export default function Dashboard() {
           border-top: 1px solid #1a1a1a;
         }
 
+        .opportunities-section {
+          padding: 0 40px 28px;
+        }
+        .opportunities-shell {
+          border: 1px solid #1a1a1a;
+          background: #0e0e0e;
+        }
+        .opportunities-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 16px;
+          padding: 18px 24px 16px;
+          border-bottom: 1px solid #1a1a1a;
+          flex-wrap: wrap;
+        }
+        .opportunities-title {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: clamp(20px, 3vw, 28px);
+          letter-spacing: 0.06em;
+          color: #fff;
+        }
+        .opportunities-subtitle {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .opportunity-list {
+          display: flex;
+          flex-direction: column;
+        }
+        .opportunity-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1.4fr) auto;
+          gap: 16px;
+          align-items: start;
+          padding: 16px 24px;
+          border-top: 1px solid #141414;
+        }
+        .opportunity-row:first-child {
+          border-top: none;
+        }
+        .opportunity-company {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 22px;
+          letter-spacing: 0.04em;
+          color: #fff;
+        }
+        .opportunity-role {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin-top: 4px;
+        }
+        .opportunity-stage-label,
+        .opportunity-next-label {
+          font-size: 9px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+        .opportunity-stage-value {
+          font-size: 12px;
+          color: #fff;
+          line-height: 1.5;
+        }
+        .opportunity-next-value {
+          font-size: 12px;
+          color: #FFFFF0;
+          line-height: 1.6;
+        }
+        .opportunity-status {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 8px;
+        }
+        .opportunity-status-badge {
+          font-size: 9px;
+          color: #999;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          border: 1px solid #2a2a2a;
+          padding: 4px 8px;
+          white-space: nowrap;
+        }
+        .opportunity-status-badge.due {
+          color: #ff8d8d;
+          border-color: #5a2626;
+          background: #241212;
+        }
+        .opportunity-followup-date {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          text-align: right;
+        }
+        .review-section {
+          padding: 0 40px 28px;
+        }
+        .review-shell {
+          border: 1px solid #1a1a1a;
+          background: #0e0e0e;
+        }
+        .review-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 16px;
+          padding: 18px 24px 16px;
+          border-bottom: 1px solid #1a1a1a;
+          flex-wrap: wrap;
+        }
+        .review-title {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: clamp(20px, 3vw, 28px);
+          letter-spacing: 0.06em;
+          color: #fff;
+        }
+        .review-subtitle {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+        }
+        .review-metrics {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 1px;
+          background: #141414;
+        }
+        .review-metric {
+          background: #0e0e0e;
+          padding: 16px 24px;
+        }
+        .review-metric-value {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 28px;
+          letter-spacing: 0.04em;
+          color: #fff;
+        }
+        .review-metric-label {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin-top: 6px;
+        }
+        .review-body {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1px;
+          background: #141414;
+        }
+        .review-panel {
+          background: #0e0e0e;
+          padding: 18px 24px 20px;
+        }
+        .review-panel-title {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin-bottom: 12px;
+        }
+        .review-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .review-item {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: baseline;
+          border-top: 1px solid #161616;
+          padding-top: 10px;
+        }
+        .review-item:first-child {
+          border-top: none;
+          padding-top: 0;
+        }
+        .review-item-name {
+          font-size: 12px;
+          color: #fff;
+          line-height: 1.5;
+        }
+        .review-item-meta {
+          font-size: 10px;
+          color: #666;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .review-empty {
+          font-size: 12px;
+          color: #666;
+          line-height: 1.6;
+        }
+
         .footer {
           border-top: 1px solid #1a1a1a;
           padding: 18px 40px;
@@ -444,9 +601,41 @@ export default function Dashboard() {
         }
         .principle { max-width: 480px; text-align: right; line-height: 1.6; }
 
+        @media (max-width: 900px) {
+          .track-main {
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+          .track-next {
+            justify-self: start;
+          }
+          .track-controls {
+            align-self: start;
+          }
+        }
         @media (max-width: 600px) {
-          .header, .tracks, .footer { padding-left: 20px; padding-right: 20px; }
-          .track-header { grid-template-columns: 60px 1fr auto; gap: 12px; }
+          .header, .tracks, .review-section, .opportunities-section, .footer { padding-left: 20px; padding-right: 20px; }
+          .track-header { grid-template-columns: 60px minmax(0, 1fr) 112px; gap: 12px; }
+          .track-main { gap: 6px; }
+          .track-next { font-size: 10px; }
+          .track-controls { width: 112px; }
+        }
+        @media (max-width: 760px) {
+          .review-metrics {
+            grid-template-columns: 1fr;
+          }
+          .review-body {
+            grid-template-columns: 1fr;
+          }
+          .opportunity-row {
+            grid-template-columns: 1fr;
+          }
+          .opportunity-status {
+            align-items: flex-start;
+          }
+          .opportunity-followup-date {
+            text-align: left;
+          }
         }
       `}</style>
 
@@ -514,21 +703,23 @@ export default function Dashboard() {
                   ) : track.tag}
                 </div>
 
-                <div className="track-name">
-                  {editMode && isOpen ? (
-                    <EditableField
-                      value={track.label}
-                      onChange={v => updateTrack(track.id, "label", v)}
-                      style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(18px,3vw,26px)", letterSpacing: "0.06em", color: "#fff" }}
-                    />
-                  ) : track.label}
+                <div className="track-main">
+                  <div className="track-name">
+                    {editMode && isOpen ? (
+                      <EditableField
+                        value={track.label}
+                        onChange={v => updateTrack(track.id, "label", v)}
+                        style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(18px,3vw,26px)", letterSpacing: "0.06em", color: "#fff" }}
+                      />
+                    ) : track.label}
+                  </div>
+
+                  {!editMode && (
+                    <div className="track-next">{track.nextAction}</div>
+                  )}
                 </div>
 
-                {!editMode && (
-                  <div className="track-next">{track.nextAction}</div>
-                )}
-
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div className="track-controls">
                   {editMode && isOpen ? (
                     <select
                       className="urgency-select"
@@ -537,7 +728,7 @@ export default function Dashboard() {
                       onChange={e => updateTrack(track.id, "urgency", e.target.value)}
                       onClick={e => e.stopPropagation()}
                     >
-                      {URGENCY_OPTIONS.map(o => (
+                      {TRACK_URGENCY_OPTIONS.map(o => (
                         <option key={o} value={o} style={{ background: "#222" }}>
                           {urgencyStyles[o]?.label || o.toUpperCase()}
                         </option>
@@ -607,6 +798,135 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      <div className="review-section">
+        <div className="review-shell">
+          <div className="review-header">
+            <div>
+              <div className="review-title">Review Pulse</div>
+              <div className="review-subtitle">What needs attention before momentum slips</div>
+            </div>
+          </div>
+
+          <div className="review-metrics">
+            <div className="review-metric">
+              <div className="review-metric-value">{reviewSummary.activeOpportunityCount}</div>
+              <div className="review-metric-label">
+                {pluralize(
+                  reviewSummary.activeOpportunityCount,
+                  "active opportunity",
+                  "active opportunities"
+                )}
+              </div>
+            </div>
+            <div className="review-metric">
+              <div className="review-metric-value">{reviewSummary.dueFollowUpCount}</div>
+              <div className="review-metric-label">
+                {pluralize(reviewSummary.dueFollowUpCount, "follow-up due", "follow-ups due")}
+              </div>
+            </div>
+            <div className="review-metric">
+              <div className="review-metric-value">{reviewSummary.staleItemCount}</div>
+              <div className="review-metric-label">
+                {pluralize(reviewSummary.staleItemCount, "stale item")}
+              </div>
+            </div>
+          </div>
+
+          <div className="review-body">
+            <div className="review-panel">
+              <div className="review-panel-title">Stale Tracks</div>
+              {reviewSummary.staleTracks.length > 0 ? (
+                <div className="review-list">
+                  {reviewSummary.staleTracks.map((track) => (
+                    <div key={track.id} className="review-item">
+                      <div className="review-item-name">{track.label}</div>
+                      <div className="review-item-meta">Needs next action</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="review-empty">All active tracks have a next action.</div>
+              )}
+            </div>
+
+            <div className="review-panel">
+              <div className="review-panel-title">Attention Now</div>
+              {reviewSummary.staleOpportunities.length > 0 ? (
+                <div className="review-list">
+                  {reviewSummary.staleOpportunities.map((opportunity) => (
+                    <div key={opportunity.id} className="review-item">
+                      <div className="review-item-name">{opportunity.company}</div>
+                      <div className="review-item-meta">Due {opportunity.followUpBy}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="review-empty">No overdue follow-ups right now.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {openOpportunities.length > 0 && (
+        <div className="opportunities-section">
+          <div className="opportunities-shell">
+            <div className="opportunities-header">
+              <div>
+                <div className="opportunities-title">Open Opportunities</div>
+                <div className="opportunities-subtitle">
+                  {openOpportunities.length} active conversation{openOpportunities.length === 1 ? "" : "s"}
+                </div>
+              </div>
+            </div>
+
+            <div className="opportunity-list">
+              {openOpportunities.map((opportunity) => {
+                const isDue = dueFollowUpIds.has(opportunity.id);
+
+                return (
+                  <div key={opportunity.id} className="opportunity-row">
+                    <div>
+                      <div className="opportunity-company">{opportunity.company}</div>
+                      {opportunity.role && (
+                        <div className="opportunity-role">{opportunity.role}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="opportunity-stage-label">Stage</div>
+                      <div className="opportunity-stage-value">{opportunity.stage || "TBD"}</div>
+                    </div>
+
+                    <div>
+                      <div className="opportunity-next-label">Next Action</div>
+                      <div className="opportunity-next-value">
+                        {opportunity.nextAction || "Define the next concrete step."}
+                      </div>
+                    </div>
+
+                    <div className="opportunity-status">
+                      {isDue ? (
+                        <div className="opportunity-status-badge due">Follow-up Due</div>
+                      ) : (
+                        <div className="opportunity-status-badge">
+                          {opportunity.status.replace("-", " ")}
+                        </div>
+                      )}
+                      {opportunity.followUpBy && (
+                        <div className="opportunity-followup-date">
+                          Follow up by {opportunity.followUpBy}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="footer">
         <div>ONE NEXT ACTION PER TRACK · WRITE WEEKLY</div>
