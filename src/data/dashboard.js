@@ -142,8 +142,23 @@ function normalizeTracks(tracks) {
   }
 
   return tracks.map((track, index) => {
-    const fallbackTrack = defaultTracks[index] || defaultTracks[0];
-    return normalizeTrack(track, fallbackTrack);
+    const source = isRecord(track) ? track : {};
+    const fallbackTrack =
+      (typeof source.id === "string" && source.id
+        ? defaultTracks.find((candidate) => candidate.id === source.id)
+        : null) || {
+        id: `track-${index + 1}`,
+        label: "Untitled Track",
+        tag: "",
+        color: "#666",
+        urgency: "slow-burn",
+        focus: "",
+        nextAction: "",
+        writePrompt: "",
+        context: "",
+      };
+
+    return normalizeTrack(source, fallbackTrack);
   });
 }
 
