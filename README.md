@@ -81,6 +81,7 @@ npm run build
 
 - Spec: [docs/spec.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/spec.md)
 - Software method: [docs/software-method.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/software-method.md)
+- ADR 001, persistence for current phase: [docs/adr-001-gist-persistence.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/adr-001-gist-persistence.md)
 
 ## Near-term product direction
 
