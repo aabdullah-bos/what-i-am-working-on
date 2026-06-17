@@ -64,7 +64,7 @@ Current fields:
 
 This is now partially implemented as a first-class concept.
 
-The current product can display open opportunities and review overdue follow-ups, but it still does not provide a way to add a new opportunity from the UI.
+The current product can display open opportunities and review overdue follow-ups. In edit mode, it also provides an inline add-opportunity flow, allowing users to create new opportunities directly from the dashboard.
 
 An opportunity is a specific company, role, contract, or conversation with its own:
 

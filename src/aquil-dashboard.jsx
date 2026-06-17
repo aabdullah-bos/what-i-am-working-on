@@ -34,8 +34,8 @@ function EditableField({ value, onChange, multiline, style, ...inputProps }) {
       <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
-        onClick={e => e.stopPropagation()}
         {...inputProps}
+        onClick={e => e.stopPropagation()}
         style={{
           background: "transparent",
           border: "1px dashed #333",
@@ -57,8 +57,8 @@ function EditableField({ value, onChange, multiline, style, ...inputProps }) {
     <input
       value={value}
       onChange={e => onChange(e.target.value)}
-      onClick={e => e.stopPropagation()}
       {...inputProps}
+      onClick={e => e.stopPropagation()}
       style={{
         background: "transparent",
         border: "1px dashed #333",
@@ -1003,8 +1003,8 @@ export default function Dashboard() {
                   {editMode
                   ? `${pluralize(
                       allOpportunities.length,
-                      "saved opportunity",
-                      "saved opportunities"
+                      "total opportunity",
+                      "total opportunities"
                     )} · ${pluralize(
                       openOpportunities.length,
                       "open opportunity",
@@ -1123,7 +1123,11 @@ export default function Dashboard() {
                         </select>
                         <button
                           className="btn btn-remove-opportunity"
-                          onClick={() => handleRemoveOpportunity(opportunity.id)}
+                          onClick={() => {
+                            if (window.confirm("Remove this opportunity? This action cannot be undone.")) {
+                              handleRemoveOpportunity(opportunity.id);
+                            }
+                          }}
                         >
                           Remove
                         </button>
