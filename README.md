@@ -1,70 +1,91 @@
-# Getting Started with Create React App
+# What I'm Working On
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+`What I'm Working On` is a small personal dashboard for managing active workstreams while searching for a job.
 
-## Available Scripts
+The current product is designed to answer one question quickly:
 
-In the project directory, you can run:
+`What matters right now, and what is the next concrete action for each area of work?`
 
-### `npm start`
+Today the app organizes work into a set of editable tracks such as interviews, networking, writing, and product exploration. Each track carries a focus statement, context, one next action, a writing prompt, and an urgency label. The dashboard reads and writes that state to a GitHub Gist so it can act as a lightweight, always-available control panel.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## What the app does today
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- Shows a list of active tracks on a single dashboard.
+- Expands each track to reveal focus, context, next action, and writing prompt.
+- Supports inline editing for track content.
+- Persists changes to a GitHub Gist.
+- Falls back to local defaults if the Gist is unavailable.
 
-### `npm test`
+## Why this exists
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Most task tools are good at storing items and bad at preserving strategic context.
 
-### `npm run build`
+This app takes the opposite approach. It is intentionally small and opinionated:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- Each track should have a clear purpose.
+- Each track should expose one next action.
+- Writing is part of execution, not a separate activity.
+- The dashboard should help maintain momentum across multiple fronts without becoming a complex project manager.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Current product shape
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The application currently uses a flat `track` model. Each track contains:
 
-### `npm run eject`
+- `label`
+- `tag`
+- `color`
+- `urgency`
+- `focus`
+- `context`
+- `nextAction`
+- `writePrompt`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+That model works well for broad areas of work, but it starts to strain when one track contains several live opportunities or interviews. The next phase of product work should likely introduce a deeper model for opportunities, follow-ups, and review workflows.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Tech stack
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+- React
+- Create React App
+- GitHub Gist as lightweight persistence
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+The main product logic lives in [src/aquil-dashboard.jsx](/Users/aquilabdullah/devel/projects/what-i-am-working-on/src/aquil-dashboard.jsx:1).
 
-## Learn More
+## Local development
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Install dependencies:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```sh
+npm install
+```
 
-### Code Splitting
+2. Create a `.env` file with:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```env
+REACT_APP_GIST_ID=your_gist_id
+REACT_APP_GITHUB_TOKEN=your_github_token
+```
 
-### Analyzing the Bundle Size
+3. Start the app:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```sh
+npm start
+```
 
-### Making a Progressive Web App
+4. Build for production:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```sh
+npm run build
+```
 
-### Advanced Configuration
+## Product documents
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- Spec: [docs/spec.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/spec.md)
+- Software method: [docs/software-method.md](/Users/aquilabdullah/devel/projects/what-i-am-working-on/docs/software-method.md)
 
-### Deployment
+## Near-term product direction
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+The highest-value improvements are:
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Represent interview opportunities as first-class objects instead of one overloaded track.
+- Add follow-up and review mechanics, not just urgency labels.
+- Turn the dashboard into a weekly operating system for job search execution.
