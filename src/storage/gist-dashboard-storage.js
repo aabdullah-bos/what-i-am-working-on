@@ -34,8 +34,12 @@ function parseDashboardContent(file) {
     throw new Error("Gist file is truncated and cannot be loaded safely");
   }
 
-  if (!file.content) {
+  if (typeof file.content !== "string") {
     throw new Error("Gist file not found");
+  }
+
+  if (!file.content) {
+    throw new Error("Gist file is empty");
   }
 
   try {
